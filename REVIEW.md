@@ -32,7 +32,7 @@ The one-sentence content of the verified theorem:
 | Theorem 16 (consistency) | `countSystem` (counting measure satisfies all fields) | `ProbabilityTheorem.lean` |
 | Bridge to propositional problems | `eventOf`, `score_eventOf` | `ProbabilityTheorem.lean` |
 
-### Syntactic layer (new, this session)
+### Syntactic layer
 
 | Content | Lean declaration | File |
 |---|---|---|
@@ -54,6 +54,18 @@ The one-sentence content of the verified theorem:
 | **Corollary 8 (syntactic)** | `lemma6_counts`, `value_eq_of_counts_eq` | `VanHorn/Reduction.lean` |
 | Canonic formula machinery + modelsOn | `bigOr`/`exactlyOne`/`allNeg`, `modelsOn`, `card_modelsOn_subset` | `VanHorn/Canonic.lean` |
 
+### Bridge layer (`Bridge.lean`, closing the loop)
+
+| Content | Lean declaration |
+|---|---|
+| exactlyOne has exactly n models | `card_modelsOn_exactlyOne` |
+| disjoint vocabularies multiply | `card_modelsOn_split` |
+| favorable count via bigOr filter | `card_modelsOn_bigOr_and_exactlyOne` |
+| Syntactic Lemma 10 (scale, via R3) | `value_scale` |
+| Canonical strict monotonicity (via R4) | `value_mono_canonical` |
+| The instance: Requirements → system | `toSystem`, `canonicalValue` |
+| **Final calibration theorem** | `vanHorn_calibration` |
+
 ## 3. Architecture
 
 ```
@@ -67,8 +79,11 @@ Plausibility/PropLogic/Formula.lean      syntax, eval
 Plausibility/PropLogic/Semantics.lean    models, Satisfiable, logicalProbability
 Plausibility/VanHorn/Substitution.lean   mapLift, r2Equiv, sumEquiv, diagram
 Plausibility/VanHorn/Requirements.lean   LogicalPlausibility (syntactic R1–R4)
+Plausibility/VanHorn/Canonic.lean        bigOr/exactlyOne, modelsOn, model counts
+Plausibility/VanHorn/Reduction.lean      Lemma 6 + Corollary 8 from raw R1+R2
 Plausibility/VanHorn/ProbabilityLaws.lean Corollary 15, extendedProbability
 Plausibility/VanHorn/Counterexamples.lean threeSystem (R4 violation), biased coin
+Plausibility/VanHorn/Bridge.lean         R3/R4 transfer, toSystem, vanHorn_calibration
 ```
 
 Layering is the paper's own:
@@ -83,7 +98,7 @@ Only the ratio m/n matters                         [RationalRepresentation]
       ↓  R4
 Plausibility order ≅ ℚ ∩ [0,1]                     [ProbabilityTheorem]
       ↑  R3/R4 transfer (Bridge.lean: value_scale, value_mono_canonical,
-      ↑    toSystem — compiles; vanHorn_calibration body in progress)
+      ↑    toSystem, vanHorn_calibration — all proved)
 ```
 
 ## 4. Design decisions a reviewer should know
@@ -93,7 +108,7 @@ Plausibility order ≅ ℚ ∩ [0,1]                     [ProbabilityTheorem]
 3. **Rational `[0,1]`, not real.** `Rat01 := {q : ℚ // 0 ≤ q ∧ q ≤ 1}` (an `abbrev`, so instance resolution sees the subtype). No measure theory anywhere.
 4. **Universe polymorphism via `ULift`.** `PlausibilitySystem` scores world spaces in `Type u`; canonical events live in `ULift (Fin n)` so they sit in the same universe. No fixed finite atom type is used for the range — the red-alert failure mode ("fixed `α` has only finitely many achieved values") is structurally avoided.
 5. **Dependent-transport style.** Where Lean's dependent types block rewriting (`Fin (a+b)` vs `Fin n`), the proofs transport through explicit `EventEquiv`es (`finCongr`, `Equiv.ulift`) and defeq-tolerant `calc` chains rather than `rw`.
-6. **Honest layer labeling.** `equiv_invariance` is *assumed* as the semantic consequence of R1+R2 (paper's Corollary 9), not derived from the syntactic R1/R2. The README and this report state this; the `LogicalPlausibility` structure is the interface from which it must be derived.
+6. **Layer labeling — closed.** `equiv_invariance` is stated as a field of `PlausibilitySystem` (the semantic consequence of R1+R2, paper's Corollary 9); the bridge (`Reduction.lean` + `Bridge.lean`) now derives it from the raw syntactic R1/R2 via `toSystem` and `vanHorn_calibration`, so the semantic layer's assumption is discharged for every `LogicalPlausibility`.
 
 ## 5. The bridge — DONE
 
