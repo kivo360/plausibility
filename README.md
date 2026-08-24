@@ -160,6 +160,11 @@ Plausibility/VanHorn/Counterexamples.lean -- R4 counterexample, biased coin
 Plausibility/VanHorn/Bridge.lean         -- R3/R4 transfer, toSystem, calibration
 ```
 
+## Plain-English version
+
+See `ELI5.md` for the no-background-needed explanation: what the theorem says,
+the four rules in plain words, and why the machine check matters.
+
 ## Review report
 
 See `REVIEW.md` (or `REVIEW.pdf`) for the full review report: verified-theorem
