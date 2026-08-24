@@ -160,5 +160,5 @@ Axiom audit (all results currently): `#print axioms <name>` -> `[propext, Classi
   (`propext`, `Classical.choice`, `Quot.sound` only; zero `sorry`).
 - Commits: `d5a783f` (semantic layer), `90e73ff` (bridge infrastructure + laws +
   counterexamples), `2fb2af4` (Lemma 6 core), `7abf2c4` (syntactic Corollary 8),
-  `4e07f54` (R3/R4 transfer scaffold), final commit (complete calibration
-  theorem; github.com/kivo360/plausibility).
+  `4e07f54` (R3/R4 transfer scaffold), `7fae5ca` (complete calibration
+  theorem), `d9816a5` (doc fixes; github.com/kivo360/plausibility).
