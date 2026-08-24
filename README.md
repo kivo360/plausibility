@@ -19,19 +19,16 @@ lake build
 
 ## Status
 
-**The paper's core claim is machine-verified at both layers.** The semantic
-finite-event layer (Theorems 14 and 16, Corollaries 8, 12, 15) is fully proved,
-and the syntactic bridge from the raw Requirements R1+R2 to count dependence
-(Van Horn's Lemma 6 and Corollary 8) is fully proved in
-`Plausibility/VanHorn/Reduction.lean` — equal model counts give equal
-plausibilities, with no `sorry` and no axioms beyond the standard three.
-
-The one remaining step is the **R3/R4 transfer**: constructing a
-`PlausibilitySystem` instance from a syntactic `LogicalPlausibility` (scale
-invariance via R3, strict monotonicity via R4), and the final calibration
-theorem. That work is in progress in `Plausibility/VanHorn/Bridge.lean` — the
-`toSystem` instance (all three structural fields) already compiles; the final
-`vanHorn_calibration` theorem is scaffolded with a few proof obligations left.
+**COMPLETE. The paper's core theorem is machine-verified end-to-end, from the
+raw Requirements R1–R4 to rational probability.** The semantic finite-event
+layer (Theorems 14 and 16, Corollaries 8, 12, 15), the syntactic bridge from
+R1+R2 to count dependence (Lemma 6 / Corollary 8, in `Reduction.lean`), and the
+R3/R4 transfer (in `Bridge.lean`): `toSystem : LogicalPlausibility P →
+PlausibilitySystem P` with all three structural fields, and the final
+calibration theorem `vanHorn_calibration` — `lp.value A X = Υ₁ (toSystem lp)
+(#(A∧X) / #X)` — are all proved, with no `sorry` and no axioms beyond the
+standard three. Every theorem in the project passes `#print axioms` with
+`[propext, Classical.choice, Quot.sound]` only.
 
 ## What is proved
 
@@ -111,7 +108,7 @@ Plausibility order ≅ rational [0,1]            [ProbabilityTheorem.lean]
   `threeSystem` satisfies `equiv_invariance` and `irrelevant_product` but
   violates `strict_mono`; plus a nonuniform example (`biased_coin_heads`).
 
-### Bridge to propositional problems (in progress)
+### Bridge to propositional problems (complete)
 
 * `eventOf` / `score_eventOf` — for a satisfiable premise `X`, scoring the
   event of `X`-worlds satisfying `A` equals the plausibility of the logical
@@ -123,20 +120,21 @@ Plausibility order ≅ rational [0,1]            [ProbabilityTheorem.lean]
   * `toSystem : LogicalPlausibility P → PlausibilitySystem P` — the
     instance, with `equiv_invariance`, `irrelevant_product`, `strict_mono`
     all proved (compiles),
-  * `vanHorn_calibration` — the final theorem (`lp.value A X = Υ₁ (toSystem
-    lp) (probOf …)`); statement complete, proof body in progress.
+  * `vanHorn_calibration` — **the final calibration theorem**: `lp.value A X
+    = Υ₁ (toSystem lp) (probOf (event of A-worlds within X-worlds))`. Together
+    with `score_eq_upsilon₁` and `plausibilityOrderIso`, Van Horn's Theorem 14
+    now applies verbatim to the raw Requirements.
 * `Sanity` section — `(1,2) = (2,4)` in plausibility (Lemma 10) and
   `(1,3) < (1,2)` (Lemma 13), for *every* plausibility system.
 
 ## Honest scope statement
 
-The paper's **finite uniqueness theorem** is fully machine-checked at the
-semantic layer, and the syntactic bridge from raw R1+R2 to count dependence
-(Lemma 6 / Corollary 8) is fully machine-checked. The remaining step is the
-R3/R4 transfer assembling the `PlausibilitySystem` instance from a syntactic
-`LogicalPlausibility` (in progress in `Bridge.lean`). The measure-theoretic
-extension to infinite domains (paper §9.3) is out of scope. Unsatisfiable
-premises are excluded from the main theorems, as in the paper.
+The paper's **finite uniqueness theorem** is fully machine-checked end-to-end:
+the semantic layer, the syntactic Lemma-6 bridge from raw R1+R2, and the R3/R4
+transfer to the `PlausibilitySystem` instance with the final calibration
+theorem. The measure-theoretic extension to infinite domains (paper §9.3) is
+out of scope. Unsatisfiable premises are excluded from the main theorems, as in
+the paper.
 
 Axiom check: every theorem depends only on `propext`, `Classical.choice`,
 `Quot.sound` (verified via `#print axioms`); no `sorry` or custom axioms.
@@ -159,7 +157,7 @@ Plausibility/VanHorn/Reduction.lean      -- Lemma 6, Corollary 8 (syntactic)
 Plausibility/VanHorn/Canonic.lean        -- bigOr/exactlyOne, modelsOn, counts
 Plausibility/VanHorn/ProbabilityLaws.lean -- Corollary 15, extendedProbability
 Plausibility/VanHorn/Counterexamples.lean -- R4 counterexample, biased coin
-Plausibility/VanHorn/Bridge.lean         -- R3/R4 transfer, toSystem, calibration (in progress)
+Plausibility/VanHorn/Bridge.lean         -- R3/R4 transfer, toSystem, calibration
 ```
 
 ## Review report

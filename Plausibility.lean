@@ -10,3 +10,4 @@ import Plausibility.VanHorn.Requirements
 import Plausibility.VanHorn.ProbabilityLaws
 import Plausibility.VanHorn.Counterexamples
 import Plausibility.VanHorn.Reduction
+import Plausibility.VanHorn.Bridge

@@ -880,70 +880,78 @@ theorem vanHorn_calibration (lp : LogicalPlausibility P) {S : Finset Atom}
         (Plausibility.probOf
           ((modelsOn S X).attach.filter (fun w =>
             (w.val : ↥S → Bool) ∈ modelsOn S (A.and X)))) := by
-  -- abbreviations
-  set W := modelsOn S X with hW
-  set E := W.attach.filter (fun w => (w.val : ↥S → Bool) ∈ modelsOn S (A.and X)) with hE
-  -- the event count is the favorable count
-  have hEcard : E.card = (modelsOn S (A.and X)).card := by
-    have hfil : W.filter (fun w => w ∈ modelsOn S (A.and X)) =
-        modelsOn S (A.and X) := by
-      ext w
-      rw [Finset.mem_filter]
-      constructor
-      · rintro ⟨h1, h2⟩
-        exact h2
-      · intro h
-        refine ⟨?_, h⟩
-        rw [mem_modelsOn_iff S X hsX]
-        have := (mem_modelsOn_iff S (A.and X) (Finset.union_subset hsA hsX) w).mp h
-        rw [Formula.eval, Bool.and_eq_true_iff] at this
-        exact this.2
-    calc E.card = (W.attach.filter (fun w =>
-            (w.val : ↥S → Bool) ∈ modelsOn S (A.and X))).card := rfl
-      _ = (W.filter (fun w => w ∈ modelsOn S (A.and X))).card := by
-          rw [Finset.filter_attach, Finset.card_map, Finset.card_attach]
+  -- the favorable-event filter over the world space is the favorable model set
+  have hfil : (modelsOn S X).filter (fun w => w ∈ modelsOn S (A.and X)) =
+      modelsOn S (A.and X) := by
+    ext w
+    rw [Finset.mem_filter]
+    constructor
+    · rintro ⟨h1, h2⟩
+      exact h2
+    · intro h
+      refine ⟨?_, h⟩
+      rw [mem_modelsOn_iff S X hsX]
+      have := (mem_modelsOn_iff S (A.and X) (Finset.union_subset hsA hsX) w).mp h
+      rw [Formula.eval, Bool.and_eq_true_iff] at this
+      exact this.2
+  -- the attach-filter's card is the favorable count
+  have hEvcard : ((modelsOn S X).attach.filter (fun w =>
+      (w.val : ↥S → Bool) ∈ modelsOn S (A.and X))).card
+      = (modelsOn S (A.and X)).card := by
+    calc ((modelsOn S X).attach.filter (fun w =>
+            (w.val : ↥S → Bool) ∈ modelsOn S (A.and X))).card
+        = ((modelsOn S X).filter (fun w => w ∈ modelsOn S (A.and X))).card := by
+          rw [Finset.card_filter, Finset.card_filter]
+          exact Finset.sum_attach (modelsOn S X)
+            (fun v => if v ∈ modelsOn S (A.and X) then 1 else 0)
       _ = (modelsOn S (A.and X)).card := by rw [hfil]
-  -- step 1: the induced system's score of the event is the canonical value
-  have hscore : (toSystem lp).score E =
-      canonicalValue lp (modelsOn S (A.and X)).card (modelsOn S X).card := by
-    show canonicalValue lp E.card (Fintype.card {w // w ∈ modelsOn S X}) = _
-    rw [hEcard, Fintype.card_coe (modelsOn S X)]
-  -- step 2: the semantic layer identifies score with upsilon₁ of probOf
-  have hsem := score_eq_upsilon₁ (toSystem lp) E
-  -- step 3: reduce lp.value A X to the canonical value (Lemma 6 + k=1 transport)
+  -- the world space is nonempty and favorable ≤ total
   have hn0 : 0 < (modelsOn S X).card := by
-    refine Finset.card_pos.mpr ⟨restrictFill S (Classical.choose (id hX)), ?_⟩
-    have hv : X.eval (Classical.choose (id hX)) = true :=
-      Classical.choose_spec (id hX)
-    refine (mem_modelsOn_iff S X hsX _).mpr ?_
-    rw [eval_restrictFill S X hsX (Classical.choose (id hX))]
+    obtain ⟨v, hv⟩ := hX
+    refine Finset.card_pos.mpr ⟨restrictFill S v, ?_⟩
+    rw [mem_modelsOn_iff S X hsX, eval_restrictFill S X hsX v]
     exact hv
   have hmn : (modelsOn S (A.and X)).card ≤ (modelsOn S X).card := by
-    rw [hfil]
+    rw [← hfil]
     exact Finset.card_filter_le _ _
-  set b : ℕ := (S ∪ (A.support ∪ X.support)).sup id + (modelsOn S X).card + 1
-    with hbdef
-  have hsup : (S ∪ (A.support ∪ X.support)).sup id < b := by
-    rw [hbdef]
-    omega
-  have hred := lemma6_counts lp hsA hsX b hsup
-  -- value_scale with k = 1 transports base b to base 1
+  -- reduce to the canonical problem at a fresh base, then transport to base 1
+  have hArith : ∀ d c : ℕ, d < d + c + 1 := fun _ _ => by omega
+  have hsup : (S ∪ (A.support ∪ X.support)).sup id <
+      (S ∪ (A.support ∪ X.support)).sup id + (modelsOn S X).card + 1 :=
+    hArith _ _
+  have hred := lemma6_counts lp hsA hsX _ hsup
+  have hArith2 : ∀ d c : ℕ, 1 + 1 * c ≤ d + c + 1 + c + 1 := fun _ _ => by omega
+  have hb1 : (S ∪ (A.support ∪ X.support)).sup id + (modelsOn S X).card + 1
+      + (modelsOn S X).card + 1 ≤
+    (S ∪ (A.support ∪ X.support)).sup id + (modelsOn S X).card + 1
+      + (modelsOn S X).card + 1 := le_of_eq rfl
+  have hb2 : 1 + 1 * (modelsOn S X).card ≤
+    (S ∪ (A.support ∪ X.support)).sup id + (modelsOn S X).card + 1
+      + (modelsOn S X).card + 1 := hArith2 _ _
   have hscale := value_scale lp (modelsOn S (A.and X)).card (modelsOn S X).card 1
-    hn0 (Nat.zero_lt_one) hmn b 1 (b + (modelsOn S X).card + 1)
-    (by rw [hbdef]; omega) (by omega)
+    hn0 (Nat.zero_lt_one) hmn
+    ((S ∪ (A.support ∪ X.support)).sup id + (modelsOn S X).card + 1) 1
+    ((S ∪ (A.support ∪ X.support)).sup id + (modelsOn S X).card + 1
+       + (modelsOn S X).card + 1)
+    hb1 hb2
   simp only [Nat.one_mul] at hscale
-  -- combine: hred's RHS is at base b; hscale says base-b = base-1
-  calc lp.value A X = lp.value
-        (bigOr ((freshAtoms 1 (modelsOn S X).card).take
-          (modelsOn S (A.and X)).card))
-        (exactlyOne (freshAtoms 1 (modelsOn S X).card)) := by
-          rw [hred]
-          exact hscale
-    _ = canonicalValue lp (modelsOn S (A.and X)).card (modelsOn S X).card := rfl
-    _ = (toSystem lp).score E := hscore.symm
+  -- assemble: value = canonical value = score of the event = upsilon₁ (probOf)
+  calc lp.value A X =
+      canonicalValue lp (modelsOn S (A.and X)).card (modelsOn S X).card := by
+        rw [hred]
+        exact hscale
+    _ = (toSystem lp).score ((modelsOn S X).attach.filter (fun w =>
+          (w.val : ↥S → Bool) ∈ modelsOn S (A.and X))) := by
+        show canonicalValue lp (modelsOn S (A.and X)).card (modelsOn S X).card =
+          canonicalValue lp
+            ((modelsOn S X).attach.filter (fun w =>
+              (w.val : ↥S → Bool) ∈ modelsOn S (A.and X))).card
+            (Fintype.card ↥(modelsOn S X))
+        rw [hEvcard, Fintype.card_coe]
     _ = PlausibilitySystem.upsilon₁ (toSystem lp)
         (Plausibility.probOf ((modelsOn S X).attach.filter (fun w =>
-          (w.val : ↥S → Bool) ∈ modelsOn S (A.and X)))) := hsem
+          (w.val : ↥S → Bool) ∈ modelsOn S (A.and X)))) :=
+        score_eq_upsilon₁ (toSystem lp) _
 
 end Final
 

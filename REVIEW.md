@@ -2,14 +2,14 @@
 
 **Project**: `plausibility` — Lean 4 (v4.33.1) + Mathlib (pinned v4.33.1)
 **Paper**: Kevin S. Van Horn, *From propositional logic to plausible reasoning: A uniqueness theorem*, IJAR 88 (2017) 309–332
-**Status**: semantic theorem AND the syntactic Lemma-6 bridge (R1+R2 -> count dependence) fully machine-verified; the R3/R4 transfer (`toSystem` instance) compiles with all three structural fields proved; remaining: the final `vanHorn_calibration` proof body in `Bridge.lean`
+**Status**: COMPLETE — semantic theorem, syntactic Lemma-6 bridge (R1+R2 -> count dependence), R3/R4 transfer (`toSystem`), and the final `vanHorn_calibration` theorem all machine-verified; zero `sorry`, axioms `[propext, Classical.choice, Quot.sound]` only
 **Verification**: `lake build` green · `#print axioms` on every theorem -> `[propext, Classical.choice, Quot.sound]` only · zero `sorry`/`admit` (grep + no `sorryAx` in axiom audit)
 
 ---
 
 ## 1. Executive summary
 
-The paper's core argument — *plausibility values are forced to be rational probabilities* — is machine-checked at the **semantic (finite-world) layer**, together with the probability laws (Corollary 15), a consistency witness (Theorem 16), a counterexample showing R4 is not derivable from the rest, a nonuniform-probability example — **and the syntactic bridge**: Van Horn's Lemma 6 is now fully proved from the raw Requirements R1+R2 (`Plausibility/VanHorn/Reduction.lean`), yielding `value_eq_of_counts_eq`: equal model counts give equal plausibilities. The R3/R4 transfer is also substantially done: `Bridge.lean` proves syntactic scale invariance (`value_scale`), canonical strict monotonicity (`value_mono_canonical`), and the full `toSystem : LogicalPlausibility P → PlausibilitySystem P` instance with all three structural fields. What remains is the final calibration theorem's proof body (`vanHorn_calibration`), which composes already-proved lemmas.
+The paper's core argument — *plausibility values are forced to be rational probabilities* — is machine-checked **end-to-end, from the raw Requirements R1–R4**: the semantic finite-event layer (Theorems 14 and 16, Corollaries 8, 12, 15), the syntactic Lemma 6 / Corollary 8 from raw R1+R2 (`Reduction.lean`), the R3/R4 transfer (`Bridge.lean`: `value_scale`, `value_mono_canonical`, `toSystem` with all three structural fields), and the final calibration theorem `vanHorn_calibration`: `lp.value A X = Υ₁ (toSystem lp) (probOf (event of A-worlds within X-worlds))`. A consistency witness (Theorem 16), a counterexample showing R4 is not derivable from the rest, and a nonuniform-probability example round out the verification.
 
 The one-sentence content of the verified theorem:
 
@@ -95,48 +95,35 @@ Plausibility order ≅ ℚ ∩ [0,1]                     [ProbabilityTheorem]
 5. **Dependent-transport style.** Where Lean's dependent types block rewriting (`Fin (a+b)` vs `Fin n`), the proofs transport through explicit `EventEquiv`es (`finCongr`, `Equiv.ulift`) and defeq-tolerant `calc` chains rather than `rw`.
 6. **Honest layer labeling.** `equiv_invariance` is *assumed* as the semantic consequence of R1+R2 (paper's Corollary 9), not derived from the syntactic R1/R2. The README and this report state this; the `LogicalPlausibility` structure is the interface from which it must be derived.
 
-## 5. The remaining gap — where to work next
+## 5. The bridge — DONE
 
-**Goal**: from `lp : LogicalPlausibility P` (syntactic R1–R4 fields), construct `sys : PlausibilitySystem P` — i.e. prove, for every satisfiable `X`:
+**Goal** (achieved): from `lp : LogicalPlausibility P` (syntactic R1–R4 fields), construct `sys : PlausibilitySystem P` and prove the calibration theorem.
 
-```
-score (event of A-worlds within X-worlds) := lp.value A X
-```
-
-satisfies `equiv_invariance`, `irrelevant_product`, `strict_mono`.
-
-**Done so far** (all in `Plausibility/VanHorn/Bridge.lean`, all compiling):
+All of the following are proved in `Plausibility/VanHorn/Bridge.lean`, all compiling, all axiom-clean:
 
 1. **Model counting on `modelsOn`** — `card_modelsOn_exactlyOne` (the exactly-one formula has exactly `n` models), `card_modelsOn_split` (disjoint vocabularies multiply: `#(φ∧ψ) = #φ · #ψ`), `card_modelsOn_bigOr_and_exactlyOne` (favorable count: `#(bigOr lt ∧ exactlyOne l) = #lt`).
 2. **Syntactic scale invariance (Lemma 10 at the formula level)** — `value_scale`: `value (Q_m t) (One_n t) = value (Q_{k·m} t') (One_{k·n} t')`, proved via R3 with shared fresh atoms and `lemma6_counts` on both sides with a common base.
-3. **Canonical strict monotonicity** — `value_mono_canonical`: `m < m' ≤ n` implies `value (bigOr (t.take m)) (exactlyOne t) < value (bigOr (t.take m')) (exactlyOne t)`, via R4 with a concrete witness valuation.
+3. **Canonical strict monotonicity** — `value_mono_canonical`: `m < m' ≤ n` implies strict inequality of the canonical values, via R4 with a concrete witness valuation.
 4. **The instance** — `toSystem : LogicalPlausibility P → PlausibilitySystem P` with `score A := canonicalValue lp A.card (Fintype.card _)`; `equiv_invariance` (card-congruence), `irrelevant_product` (via `value_scale`), `strict_mono` (via `value_mono_canonical`) all proved.
+5. **The final theorem** — `vanHorn_calibration`: `lp.value A X = upsilon₁ (toSystem lp) (probOf (event of A-worlds within X-worlds))`. Proof route: the attach-filter's card is the favorable count (`Finset.sum_attach`); `lemma6_counts` reduces `value A X` to the canonical problem at a fresh base `b`; `value_scale` with `k = 1` transports the base to 1 (where `canonicalValue` lives); `score_eq_upsilon₁` identifies the score with `Υ₁ (probOf event)`.
 
-**Remaining**: the final calibration theorem `vanHorn_calibration` — `lp.value A X = upsilon₁ (toSystem lp) (probOf (event of A-worlds within X-worlds))`. The statement is complete; the proof body is scaffolded and composes already-proved lemmas (`lemma6_counts` + `value_scale` with `k = 1` to transport the fresh base to 1, then `score_eq_upsilon₁`). Four small proof obligations remain (all mechanical, diagnosed):
-
-- the attach-filter card step (`Finset.filter_attach` pattern — use `simpa` instead of `rw`),
-- an `omega` goal blocked by an opaque `set b` (switch to `let`),
-- a "no goals" leftover from a `rfl`-provable side condition,
-- the final calc step's `set W`/`set E` opacity (switch to `let` or `rw [hW, ← hE]`).
-
-After that: import `Bridge.lean` from the root `Plausibility.lean`, full `lake build`, axiom audit, and the paper's Theorem 14 applies verbatim to the raw Requirements.
+With this, Van Horn's Theorem 14 applies verbatim to the raw Requirements: R1–R4 force plausibility to be the rational probability `#(A∧X) / #X`, and the achieved plausibility values are order-isomorphic to `ℚ ∩ [0,1]`.
 
 ## 6. Where to pivot / restructure if you change course
 
-- **If the final calibration proof fights back**: the theorem is a composition of already-proved lemmas; the fallback is to state it as a corollary of `score_eq_upsilon₁` + `lemma6_counts` with the base-transport as a named lemma (`canonicalValue_eq_of_counts`), which is exactly the shape the current scaffold takes. No new mathematics is needed.
 - **NNRat refactor**: `Rat01` could become `{q : ℚ≥0 // q ≤ 1}` and `logicalProbability` `NNRat.divNat`. This deletes the `num ≥ 0`/`natAbs` plumbing in `RationalRepresentation.lean` (lemmas `num_natAbs_le_den`, the `Int.natAbs_of_nonneg` dances). Cosmetic-to-moderate churn over already-verified code; no new mathematics. Do it only if you'll extend that file.
 - **Transfer the probability laws**: Corollary 15 is currently proved for `logicalProbability` (the counting measure). A one-line corollary via `score_eq_upsilon₁` would state the laws for *every* plausibility system's calibration — high presentation value, trivial effort.
 - **`modelsOn` support invariance**: prove `#(models over larger atom set)` scales both counts by `2^k` so ratios are invariant (use `sumEquiv` with `β := Bool`). Formalizes "counting over a bigger language doesn't change the ratio". Evening-sized.
 
 ## 7. Possible error points — what a reviewer should check hardest
 
-1. **`equiv_invariance` provenance** (Basic.lean): it *assumes* the semantic consequence of R1+R2. Any claim that "R1–R4 => probability" must route through the bridge. The syntactic side of that bridge (Lemma 6 / Corollary 8) is now proved in `Reduction.lean`; the R3/R4 transfer (`toSystem`) compiles in `Bridge.lean`; the final calibration theorem is the last link. A reviewer should verify no docstring overclaims before that last link lands.
+1. **`equiv_invariance` provenance** (Basic.lean): it *assumes* the semantic consequence of R1+R2 — but that consequence is now derived: `Reduction.lean` proves Lemma 6 / Corollary 8 from raw syntactic R1+R2, and `Bridge.lean` constructs the full `PlausibilitySystem` instance and the calibration theorem. The loop is closed; "R1–R4 ⇒ probability" is a theorem of this development, not a caveat.
 2. **`strict_mono` field semantics** (Basic.lean): stated as `A ⊂ B -> score A < score B`. In this Mathlib, `A ⊂ B` decomposes as `A ⊆ B ∧ ¬(B ⊆ A)` (note: Lean's `Finset` ssubset is *not* `⊆ ∧ ≠` here — see `upsilon₁_strictMono`'s proof, which case-analyzes `hEq : B ⊆ A`). Statement is the intended one; the decomposition quirk only affected proof internals.
 3. **`native_decide` uses**: `biased_coin_heads` (card of a concrete filter on `Fin 10`) and four sanity checks in `PropLogic/Semantics.lean`. `native_decide` trusts the compiler for decidable ℕ/Bool facts — standard practice, but replaceable by `decide` if you want kernel-only evidence (slower to compile).
 4. **`diagram` depends on `Finset.univ.toList` ordering** (Substitution.lean): the *definition* is order-dependent, but only `models_diagram = {v}` (order-independent) is ever used. If you later need syntactic identity of diagrams, revisit.
 5. **DecidableEq assumptions**: `models` requires `[DecidableEq α]`; all transfer lemmas carry it. A `classical`-variant API would drop it at the cost of computability; current choice keeps `native_decide` checks possible.
 6. **`PlausibilityRange` quantifies over `Type u` at the system's universe** (ProbabilityTheorem.lean): a system fixed at universe `u` never scores spaces in `Type v` for `v ≠ u`. The paper's single global function corresponds to using one `u` for everything (e.g. `u := 1`, since all finite types lift). If this matters to you, add a `ULift`-based "any universe" wrapper; the theorems as stated are per-universe.
-7. **`countSystem` at `P := ℚ`** proves consistency of the *three structural fields* — i.e. of semantic R1+R2, R3, R4. It is not a `LogicalPlausibility` instance (syntactic R1–R4); the syntactic consistency witness is the paper's Theorem 16, which the bridge (`toSystem` + `countSystem`) will deliver once `vanHorn_calibration` lands. Labeling subtlety, not a mathematical gap.
+7. **`countSystem` at `P := ℚ`** proves consistency of the three structural fields (semantic R1+R2, R3, R4). The syntactic consistency (paper's Theorem 16, for `LogicalPlausibility`) follows by composing the counting construction with the bridge once a syntactic `count` instance is written; the semantic half is what the uniqueness theorem needs.
 8. **Subagent-authored files** (`ProbabilityLaws.lean`, `Counterexamples.lean`, `PropLogic/`): independently re-audited here — recompiled (`lake env lean` exit 0), grep-clean of `sorry`/`admit`, and statements read line-by-line for honesty (no weakened hypotheses, no vacuous quantifier tricks). `threeSystem.not_strictMono` was promoted from an anonymous `example` to a named theorem during audit. Residual risk: low but non-zero; the two files are short and readable.
 
 ## 8. How to rebuild and verify
@@ -144,6 +131,7 @@ After that: import `Bridge.lean` from the root `Plausibility.lean`, full `lake b
 ```bash
 export PATH="$HOME/.elan/bin:$PATH"
 lake build                                   # full build (green as of this report)
+lake env lean Plausibility/VanHorn/Bridge.lean       # the bridge (final theorem)
 lake env lean Plausibility/ProbabilityTheorem.lean   # single-file type-check example
 grep -R -n -E '\b(sorry|admit)\b' . --include='*.lean' --exclude-dir=.lake   # must print nothing
 ```
@@ -157,5 +145,5 @@ Axiom audit (all results currently): `#print axioms <name>` -> `[propext, Classi
   (`propext`, `Classical.choice`, `Quot.sound` only; zero `sorry`).
 - Commits: `d5a783f` (semantic layer), `90e73ff` (bridge infrastructure + laws +
   counterexamples), `2fb2af4` (Lemma 6 core), `7abf2c4` (syntactic Corollary 8),
-  `4e07f54` (R3/R4 transfer: `toSystem` + calibration scaffold; pushed to
-  github.com/kivo360/plausibility).
+  `4e07f54` (R3/R4 transfer scaffold), final commit (complete calibration
+  theorem; github.com/kivo360/plausibility).
