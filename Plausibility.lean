@@ -5,3 +5,7 @@ import Plausibility.RationalRepresentation
 import Plausibility.ProbabilityTheorem
 import Plausibility.PropLogic.Formula
 import Plausibility.PropLogic.Semantics
+import Plausibility.VanHorn.Substitution
+import Plausibility.VanHorn.Requirements
+import Plausibility.VanHorn.ProbabilityLaws
+import Plausibility.VanHorn.Counterexamples
