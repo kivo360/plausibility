@@ -17,13 +17,29 @@ lake exe cache get
 lake build
 ```
 
+## Status
+
+**The paper's core claim is machine-verified at both layers.** The semantic
+finite-event layer (Theorems 14 and 16, Corollaries 8, 12, 15) is fully proved,
+and the syntactic bridge from the raw Requirements R1+R2 to count dependence
+(Van Horn's Lemma 6 and Corollary 8) is fully proved in
+`Plausibility/VanHorn/Reduction.lean` — equal model counts give equal
+plausibilities, with no `sorry` and no axioms beyond the standard three.
+
+The one remaining step is the **R3/R4 transfer**: constructing a
+`PlausibilitySystem` instance from a syntactic `LogicalPlausibility` (scale
+invariance via R3, strict monotonicity via R4), and the final calibration
+theorem. That work is in progress in `Plausibility/VanHorn/Bridge.lean` — the
+`toSystem` instance (all three structural fields) already compiles; the final
+`vanHorn_calibration` theorem is scaffolded with a few proof obligations left.
+
 ## What is proved
 
 The project is layered exactly as the paper's argument runs:
 
 ```
-Propositional problem (A | X)                 [PropLogic/ — syntax only]
-          ↓  (paper's R1 + R2, Lemma 6 — NOT yet formalized syntactically)
+Propositional problem (A | X)                 [PropLogic/, VanHorn/Requirements.lean]
+          ↓  R1 + R2, Lemma 6 — PROVED syntactically  [VanHorn/Reduction.lean]
 Finite event with m favorable worlds out of n  [Basic.lean, Canonical.lean]
           ↓  R3 (irrelevant information)        [ScaleInvariant.lean]
 Only the ratio m/n matters                     [RationalRepresentation.lean]
@@ -61,26 +77,64 @@ Plausibility order ≅ rational [0,1]            [ProbabilityTheorem.lean]
   `score A := #A / #Ω` in `ℚ` satisfies all three structural fields, so the
   requirements are jointly satisfiable and the theorem is not vacuous.
 
-### Propositional layer
+### Syntactic layer (fully proved)
 
 * `PropLogic/Formula.lean` — syntax (`atom`, `bot`, `neg`, `and`, derived
   `or`/`imp`/`iff`/`top`) and Boolean evaluation.
 * `PropLogic/Semantics.lean` — `models φ` as a `Finset (α → Bool)`,
   `Satisfiable`, `logicalProbability A X = #(A ∧ X) / #X` with
   `0 ≤ · ≤ 1`, plus four `native_decide` exhaustive-enumeration sanity checks.
-* `eventOf` / `score_eventOf` — the bridge (milestone 9): for a satisfiable
-  premise `X`, scoring the event of `X`-worlds satisfying `A` equals the
-  plausibility of the logical probability `#models(A ∧ X) / #models X`.
+* `VanHorn/Requirements.lean` — the raw syntactic requirements
+  `LogicalPlausibility P` over `Atom := ℕ`: R1 (equivalence), R2 (fresh
+  definitions), R3 (irrelevant fresh vocabulary), R4 (strict entailment), each
+  as an explicit structure field.
+* `VanHorn/Substitution.lean` — the semantic content of R2/R3: definitions
+  preserve models (`r2Equiv`, `card_models_def_and`), vocabularies split as
+  products (`sumEquiv`, `card_models_sum`), and the diagram `Z_i` isolating a
+  single assignment (`diagram`, `models_diagram`).
+* `VanHorn/Reduction.lean` — **Lemma 6, fully proved from R1+R2**:
+  * iterated R2 (`r2_many`, `r2_many_zip`),
+  * step 2: query becomes a disjunction of favorable symbols
+    (`step2_eqvAt`),
+  * step 3: premise becomes exactly-one (`step3_premise_eqv`),
+  * the four-step reduction (`lemma6_canonical`),
+  * **Corollary 8 (syntactic)**: `lemma6_counts`, `value_eq_of_counts_eq` —
+    `lp.value A X` depends only on `(#(A∧X), #X)`.
+* `VanHorn/Canonic.lean` — canonical formula machinery (`bigOr`,
+  `exactlyOne`, `allNeg`), `modelsOn`, `card_modelsOn_subset`, and the
+  model-counting lemmas (`card_modelsOn_exactlyOne`, `card_modelsOn_split`,
+  `card_modelsOn_bigOr_and_exactlyOne`).
+* `VanHorn/ProbabilityLaws.lean` — **Corollary 15**: complement and product
+  rules for the counting measure, plus the unsatisfiable-premise convention
+  (`extendedProbability`).
+* `VanHorn/Counterexamples.lean` — **R4 is not derivable from R1–R3**:
+  `threeSystem` satisfies `equiv_invariance` and `irrelevant_product` but
+  violates `strict_mono`; plus a nonuniform example (`biased_coin_heads`).
+
+### Bridge to propositional problems (in progress)
+
+* `eventOf` / `score_eventOf` — for a satisfiable premise `X`, scoring the
+  event of `X`-worlds satisfying `A` equals the plausibility of the logical
+  probability `#models(A ∧ X) / #models X`.
+* `VanHorn/Bridge.lean` — the R3/R4 transfer:
+  * `value_scale` — syntactic scale invariance (Lemma 10 at the formula
+    level, via R3 with shared fresh atoms),
+  * `value_mono_canonical` — canonical strict monotonicity (via R4),
+  * `toSystem : LogicalPlausibility P → PlausibilitySystem P` — the
+    instance, with `equiv_invariance`, `irrelevant_product`, `strict_mono`
+    all proved (compiles),
+  * `vanHorn_calibration` — the final theorem (`lp.value A X = Υ₁ (toSystem
+    lp) (probOf …)`); statement complete, proof body in progress.
 * `Sanity` section — `(1,2) = (2,4)` in plausibility (Lemma 10) and
   `(1,3) < (1,2)` (Lemma 13), for *every* plausibility system.
 
 ## Honest scope statement
 
-This covers the paper's **finite uniqueness theorem** at the semantic layer:
-the formalization starts from the semantic consequence of R1 + R2
-(invariance under change of variables, which the paper derives from the
-syntactic R1 + R2 via fresh-symbol definitions — Lemma 6's renaming and
-substitution machinery is not formalized here). The measure-theoretic
+The paper's **finite uniqueness theorem** is fully machine-checked at the
+semantic layer, and the syntactic bridge from raw R1+R2 to count dependence
+(Lemma 6 / Corollary 8) is fully machine-checked. The remaining step is the
+R3/R4 transfer assembling the `PlausibilitySystem` instance from a syntactic
+`LogicalPlausibility` (in progress in `Bridge.lean`). The measure-theoretic
 extension to infinite domains (paper §9.3) is out of scope. Unsatisfiable
 premises are excluded from the main theorems, as in the paper.
 
@@ -99,10 +153,17 @@ Plausibility/RationalRepresentation.lean -- upsilon₁, Lemma 13
 Plausibility/ProbabilityTheorem.lean     -- Theorem 14, 16, iff-forms, bridge
 Plausibility/PropLogic/Formula.lean      -- propositional syntax
 Plausibility/PropLogic/Semantics.lean    -- models, logical probability
+Plausibility/VanHorn/Requirements.lean   -- syntactic R1–R4 (LogicalPlausibility)
+Plausibility/VanHorn/Substitution.lean   -- R2/R3 content, diagram Z_i
+Plausibility/VanHorn/Reduction.lean      -- Lemma 6, Corollary 8 (syntactic)
+Plausibility/VanHorn/Canonic.lean        -- bigOr/exactlyOne, modelsOn, counts
+Plausibility/VanHorn/ProbabilityLaws.lean -- Corollary 15, extendedProbability
+Plausibility/VanHorn/Counterexamples.lean -- R4 counterexample, biased coin
+Plausibility/VanHorn/Bridge.lean         -- R3/R4 transfer, toSystem, calibration (in progress)
 ```
 
 ## Review report
 
 See `REVIEW.md` (or `REVIEW.pdf`) for the full review report: verified-theorem
-inventory, design decisions, the remaining Lemma-6 bridge work, pivot options,
+inventory, design decisions, the remaining R3/R4 transfer work, pivot options,
 and the error points a reviewer should check hardest.
