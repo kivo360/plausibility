@@ -1,67 +1,89 @@
 /-
-Van Horn's four Requirements, stated syntactically on a plausibility function
-taking propositional query–premise pairs, over atom types of all finite sizes.
+Van Horn's four Requirements, stated syntactically over the single global
+(countably infinite) atom language `Atom := ℕ`, exactly as the paper does:
+one plausibility function on query–premise pairs for all problem domains.
 
-This is the interface the full propositional bridge (Lemma 6 / Corollary 9)
-must target: from a `LogicalPlausibility` satisfying R1–R4 one must derive the
-semantic `PlausibilitySystem` axioms, after which the representation theorem
-(Theorem 14) applies verbatim.  The derivation itself (fresh-symbol iteration,
-change of variables, canonical reduction) is future work; the semantic
-ingredients already proved are `Plausibility.r2Equiv` (definitions do not
-change model counts) and `Plausibility.sumEquiv` (disjoint vocabularies
-split model counts as a product).
+Semantic notions here are evaluation-based (no finiteness): `X ≡ Y` means the
+formulas evaluate identically under every valuation; `X ⊨ A` is pointwise
+entailment; satisfiability is existential.  Finiteness enters only when
+*counting* models, via `Plausibility.modelsOn` over finite atom supports.
+
+R2 is stated with explicit freshness (`s` outside the supports); R3 requires
+the irrelevant formula's vocabulary to be disjoint.  The remaining gap for the
+full syntactic bridge is Lemma 6 (see `Reduction.lean`): from `r1` and `r2`,
+`value A X` depends only on the model counts of `A ∧ X` and `X`.
 -/
 
 import Plausibility.VanHorn.Substitution
-import Plausibility.PropLogic.Semantics
 
 namespace Plausibility
 
-universe u v
+universe v
 
 set_option autoImplicit false
 set_option linter.unusedSectionVars false
 
-variable {α β : Type u} [Fintype α] [DecidableEq α]
+/-- The global propositional language: one countably infinite symbol set,
+as in the paper. -/
+abbrev Atom : Type := ℕ
 
-/-- Logical equivalence of premises (same models). -/
-def Formula.Eqv (X Y : Formula α) : Prop := models X = models Y
+namespace Formula
 
-/-- Logical equivalence of queries *assuming* a premise: `A` and `B` have the
-same models among the models of `X`. -/
-def Formula.EqvAt (X A B : Formula α) : Prop :=
-  models (A.and X) = models (B.and X)
+variable {X Y Z A B : Formula Atom} {v : Atom → Bool}
+
+/-- Logical equivalence: same truth value under every valuation. -/
+def Eqv (X Y : Formula Atom) : Prop := ∀ v, X.eval v = Y.eval v
+
+/-- Equivalence of queries *assuming* a premise. -/
+def EqvAt (X A B : Formula Atom) : Prop :=
+  ∀ v, X.eval v = true → A.eval v = B.eval v
 
 /-- Semantic entailment. -/
-def Formula.Entails (X A : Formula α) : Prop := models X ⊆ models A
+def Entails (X A : Formula Atom) : Prop := ∀ v, X.eval v = true → A.eval v = true
 
-/-- A plausibility function on propositional query–premise pairs, subject to
-Van Horn's four Requirements.  Values live in a partial order; the world of
-atom types covers every finite vocabulary. -/
+/-- Satisfiability. -/
+def Sat (φ : Formula Atom) : Prop := ∃ v, φ.eval v = true
+
+@[refl] theorem Eqv.refl (X : Formula Atom) : X.Eqv X := fun _ => rfl
+
+theorem Eqv.symm (h : X.Eqv Y) : Y.Eqv X := fun v => (h v).symm
+
+theorem Eqv.trans (h₁ : X.Eqv Y) (h₂ : Y.Eqv Z) : X.Eqv Z := fun v => (h₁ v).trans (h₂ v)
+
+theorem Sat.entails_of_eqv (hX : X.Sat) (h : X.Eqv Y) : Y.Sat := by
+  obtain ⟨v, hv⟩ := hX
+  exact ⟨v, by rw [← h v, hv]⟩
+
+end Formula
+
+open Formula
+
+/-- A plausibility function on propositional query–premise pairs over the
+global language, subject to Van Horn's four Requirements. -/
 structure LogicalPlausibility (P : Type v) [PartialOrder P] where
   /-- The plausibility `(A | X)` of query `A` given premise `X`. -/
-  value : ∀ {α : Type u} [Fintype α] [DecidableEq α], Formula α → Formula α → P
+  value : Formula Atom → Formula Atom → P
 
   /-- **R1.** If `X ≡ Y` and `A ≡ₓ B`, then `(A | X) = (B | Y)`. -/
-  r1 : ∀ {α : Type u} [Fintype α] [DecidableEq α] (A B X Y : Formula α),
+  r1 : ∀ {A B X Y : Formula Atom},
     X.Eqv Y → X.EqvAt A B → value A X = value B Y
 
-  /-- **R2.** Defining a fresh symbol `s` (not occurring in `A`, `X`, `E`) as
-  `E` does not change plausibility:
-  `(lift A | (s ↔ lift E) ∧ lift X) = (A | X)`. -/
-  r2 : ∀ {α : Type u} [Fintype α] [DecidableEq α] (A X E : Formula α),
-    value (A.mapLift some) ((defFormula E).and (X.mapLift some)) = value A X
+  /-- **R2.** Defining a fresh symbol `s ∉ σ(A, X, E)` as `E` does not change
+  plausibility.  (As an equation it applies in both directions: adding and
+  removing a definition.) -/
+  r2 : ∀ (s : Atom) (A X E : Formula Atom),
+    s ∉ A.support ∪ X.support ∪ E.support →
+      value A ((Formula.atom s).iff E |>.and X) = value A X
 
   /-- **R3.** Adding a satisfiable premise `Y` over a disjoint vocabulary does
   not change plausibility. -/
-  r3 : ∀ {α β : Type u} [Fintype α] [DecidableEq α] [Fintype β] [DecidableEq β]
-      (A X : Formula α) (Y : Formula β), Satisfiable Y →
-    value (A.mapLift Sum.inl)
-      ((X.mapLift Sum.inl).and (Y.mapLift Sum.inr)) = value A X
+  r3 : ∀ (A X Y : Formula Atom), Y.Sat →
+    Disjoint Y.support (A.support ∪ X.support) →
+      value A (Y.and X) = value A X
 
   /-- **R4.** The implication ordering is preserved: if `X ⊨ A → B` but not
   `X ⊨ B → A`, then `(A | X) < (B | X)`. -/
-  r4 : ∀ {α : Type u} [Fintype α] [DecidableEq α] (A B X : Formula α),
+  r4 : ∀ (A B X : Formula Atom),
     X.Entails (A.imp B) → ¬ X.Entails (B.imp A) → value A X < value B X
 
 end Plausibility
