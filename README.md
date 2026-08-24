@@ -100,3 +100,9 @@ Plausibility/ProbabilityTheorem.lean     -- Theorem 14, 16, iff-forms, bridge
 Plausibility/PropLogic/Formula.lean      -- propositional syntax
 Plausibility/PropLogic/Semantics.lean    -- models, logical probability
 ```
+
+## Review report
+
+See `REVIEW.md` (or `REVIEW.pdf`) for the full review report: verified-theorem
+inventory, design decisions, the remaining Lemma-6 bridge work, pivot options,
+and the error points a reviewer should check hardest.
