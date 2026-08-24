@@ -775,4 +775,287 @@ theorem lemma6_canonical
 
 end Lemma6
 
+/-! ### Slicing the enumeration -/
+
+theorem filter_zip_take {α β : Type u} (dec : β → Bool) (t : List α)
+    (ρAs ρNs : List β)
+    (hlen : t.length = ρAs.length + ρNs.length)
+    (hdecA : ∀ x ∈ ρAs, dec x = true) (hdecN : ∀ x ∈ ρNs, dec x = false) :
+    ((t.zip (ρAs ++ ρNs)).filter (fun p => dec p.2)).map Prod.fst
+      = t.take ρAs.length := by
+  induction ρAs generalizing t with
+  | nil =>
+      simp only [List.nil_append, List.take]
+      induction t generalizing ρNs with
+      | nil => try rfl
+      | cons x t ihT =>
+          cases ρNs with
+          | nil =>
+              exfalso
+              simp only [List.length_nil, List.length_cons] at hlen
+              omega
+          | cons y ρNs' =>
+              have hlen' : t.length = ρNs'.length := by
+                simp only [List.length_nil, List.length_cons] at hlen
+                omega
+              have ih2 := ihT ρNs' (fun x' hx' => hdecN x' (List.mem_cons_of_mem y hx'))
+                (by simpa using hlen')
+              have hdy : dec y = false := hdecN y List.mem_cons_self
+              rw [List.zip_cons_cons, List.filter_cons_of_neg (by simp [hdy])]
+              exact ih2
+  | cons a ρAs ih =>
+      cases t with
+      | nil =>
+          exfalso
+          simp only [List.length_nil, List.length_cons] at hlen
+          omega
+      | cons x t' =>
+          have hlen' : t'.length = ρAs.length + ρNs.length := by
+            simp only [List.length_cons] at hlen
+            omega
+          have hda : dec a = true := hdecA a List.mem_cons_self
+          show List.map Prod.fst (List.filter (fun p => dec p.2)
+              ((x :: t').zip (a :: (ρAs ++ ρNs)))) = x :: t'.take ρAs.length
+          rw [show (x :: t').zip (a :: (ρAs ++ ρNs))
+              = (x, a) :: t'.zip (ρAs ++ ρNs) from rfl,
+            List.filter_cons_of_pos (by simp [hda]), List.map_cons]
+          rw [ih t' hlen' (fun x' hx' => hdecA x' (List.mem_cons_of_mem a hx'))]
+
+/-! ### Zip injectivity -/
+
+/-- Pairs of a zip over a duplicate-free first list are determined by their
+first component. -/
+theorem pair_eq_of_fst_eq_zip {α β : Type u} :
+    ∀ (t : List α) (ρs : List β), t.Nodup →
+    ∀ p q, p ∈ t.zip ρs → q ∈ t.zip ρs → p.1 = q.1 → p = q
+  | [], _, _, _, _, hp, _, _ => absurd hp (by simp)
+  | x :: t', ρs, hnodup, p, q, hp, hq, heq => by
+      cases ρs with
+      | nil => simp at hp
+      | cons y ρs' =>
+          rw [List.zip_cons_cons] at hp hq
+          rcases List.mem_cons.mp hp with rfl | hp'
+          · rcases List.mem_cons.mp hq with hq1 | hq'
+            · exact hq1.symm
+            · exfalso
+              obtain ⟨hqF, _⟩ := List.of_mem_zip hq'
+              have hqx : q.1 = x := heq.symm
+              rw [hqx] at hqF
+              exact (List.nodup_cons.mp hnodup).1 hqF
+          · rcases List.mem_cons.mp hq with rfl | hq'
+            · exfalso
+              obtain ⟨hpF, _⟩ := List.of_mem_zip hp'
+              have hpx : p.1 = x := heq
+              rw [hpx] at hpF
+              exact (List.nodup_cons.mp hnodup).1 hpF
+            · exact pair_eq_of_fst_eq_zip t' ρs' (List.nodup_cons.mp hnodup).2
+                p q hp' hq' heq
+
+/-- Pairs of a zip over a duplicate-free second list are determined by their
+second component. -/
+theorem pair_eq_of_snd_eq_zip {α β : Type u} :
+    ∀ (t : List α) (ρs : List β), ρs.Nodup →
+    ∀ p q, p ∈ t.zip ρs → q ∈ t.zip ρs → p.2 = q.2 → p = q
+  | _, [], _, _, _, hp, _, _ => absurd hp (by simp)
+  | t, y :: ρs', hnodup, p, q, hp, hq, heq => by
+      cases t with
+      | nil => simp at hp
+      | cons x t' =>
+          rw [List.zip_cons_cons] at hp hq
+          rcases List.mem_cons.mp hp with rfl | hp'
+          · rcases List.mem_cons.mp hq with hq1 | hq'
+            · exact hq1.symm
+            · exfalso
+              obtain ⟨_, hqS⟩ := List.of_mem_zip hq'
+              have hqy : q.2 = y := heq.symm
+              rw [hqy] at hqS
+              exact (List.nodup_cons.mp hnodup).1 hqS
+          · rcases List.mem_cons.mp hq with rfl | hq'
+            · exfalso
+              obtain ⟨_, hpS⟩ := List.of_mem_zip hp'
+              have hpy : p.2 = y := heq
+              rw [hpy] at hpS
+              exact (List.nodup_cons.mp hnodup).1 hpS
+            · exact pair_eq_of_snd_eq_zip t' ρs' (List.nodup_cons.mp hnodup).2
+                p q hp' hq' heq
+
+/-! ### Instantiation: plausibility depends only on the counts -/
+
+section Counts
+
+variable {S : Finset Atom} {A X : Formula Atom}
+
+theorem modelsOn_and_eq (hsA : A.support ⊆ S) (hsX : X.support ⊆ S) :
+    modelsOn S (A.and X) =
+      (modelsOn S X).filter (fun w => A.eval (fillTrue S w) = true) := by
+  ext w
+  rw [mem_modelsOn_iff S (A.and X) (Finset.union_subset hsA hsX), Finset.mem_filter,
+    mem_modelsOn_iff S X hsX]
+  constructor
+  · intro h
+    obtain ⟨h1, h2⟩ := Bool.and_eq_true_iff.mp h
+    exact ⟨h2, h1⟩
+  · rintro ⟨h1, h2⟩
+    exact Bool.and_eq_true_iff.mpr ⟨h2, h1⟩
+
+/-- **Corollary 8, syntactic form**. The plausibility of `(A | X)` is that of
+the canonical problem with `m := #(A ∧ X)` favorable and `n := #X` cases,
+counted over any finite support `S ⊇ σ(A, X)`. -/
+theorem lemma6_counts (hsA : A.support ⊆ S) (hsX : X.support ⊆ S)
+    (b : ℕ) (hb : (S ∪ (A.support ∪ X.support)).sup id < b) :
+    lp.value A X =
+      lp.value (bigOr ((freshAtoms b (modelsOn S X).card).take
+          (modelsOn S (A.and X)).card))
+        (exactlyOne (freshAtoms b (modelsOn S X).card)) := by
+  set ρAs := ((modelsOn S X).filter (fun w => A.eval (fillTrue S w) = true)).toList with hρAs
+  set ρNs := ((modelsOn S X).filter (fun w => A.eval (fillTrue S w) = false)).toList with hρNs
+  set ρs := ρAs ++ ρNs with hρs
+  set t := freshAtoms b ρs.length with ht
+  -- lengths
+  have hlenρAs : ρAs.length = (modelsOn S (A.and X)).card := by
+    rw [hρAs, ← modelsOn_and_eq hsA hsX, Finset.length_toList]
+  have hlenρs : ρs.length = (modelsOn S X).card := by
+    have hcardT : ((modelsOn S X).filter (fun w => A.eval (fillTrue S w) = true)).card +
+        ((modelsOn S X).filter (fun w => A.eval (fillTrue S w) = false)).card =
+        (modelsOn S X).card := by
+      have hpart : ((modelsOn S X).filter
+          (fun w : ↥S → Bool => A.eval (fillTrue S w) = true)).card +
+          ((modelsOn S X).filter (fun w : ↥S → Bool => ¬ A.eval (fillTrue S w) = true)).card
+          = (modelsOn S X).card :=
+        Finset.card_filter_add_card_filter_not _
+      have hE : ((modelsOn S X).filter (fun w => A.eval (fillTrue S w) = false)) =
+          ((modelsOn S X).filter (fun w => ¬ A.eval (fillTrue S w) = true)) := by
+        ext u
+        simp only [Finset.mem_filter]
+        constructor
+        · rintro ⟨hu, huA⟩; exact ⟨hu, by rw [huA]; simp⟩
+        · rintro ⟨hu, huA⟩
+          refine ⟨hu, ?_⟩
+          cases hA : A.eval (fillTrue S u) with
+          | true => exact absurd hA (by rw [hA] at huA; simp at huA)
+          | false => rfl
+      rw [hE]; exact hpart
+    rw [hρs, List.length_append, hρAs, hρNs, Finset.length_toList, Finset.length_toList,
+      hcardT]
+  -- the enumeration covers exactly the models of X
+  have hcover : ∀ w : ↥S → Bool, X.eval (fillTrue S w) = true ↔ w ∈ ρs := by
+    intro w
+    rw [hρs, hρAs, hρNs]
+    constructor
+    · intro hv
+      have hwm : w ∈ modelsOn S X := by
+        rw [mem_modelsOn_iff S X hsX]; exact hv
+      cases hA : A.eval (fillTrue S w) with
+      | true =>
+          exact List.mem_append_left ρNs (Finset.mem_toList.mpr
+            (Finset.mem_filter.mpr ⟨hwm, hA⟩))
+      | false =>
+          exact List.mem_append_right ρAs (Finset.mem_toList.mpr
+            (Finset.mem_filter.mpr ⟨hwm, hA⟩))
+    · intro hmem
+      rw [List.mem_append] at hmem
+      rcases hmem with hmem | hmem
+      · have h1 := Finset.mem_toList.mp hmem
+        rw [Finset.mem_filter] at h1
+        exact (mem_modelsOn_iff S X hsX w).mp h1.1
+      · have h1 := Finset.mem_toList.mp hmem
+        rw [Finset.mem_filter] at h1
+        exact (mem_modelsOn_iff S X hsX w).mp h1.1
+  -- pairwise properties
+  have hnodupρs : ρs.Nodup := by
+    rw [hρs]
+    refine List.Nodup.append (Finset.nodup_toList _) (Finset.nodup_toList _) ?_
+    intro u hu1 hu2
+    have h1 := Finset.mem_toList.mp hu1
+    have h2 := Finset.mem_toList.mp hu2
+    rw [Finset.mem_filter] at h1 h2
+    rw [h1.2] at h2
+    exact Bool.noConfusion h2.2
+  have hnodupt : t.Nodup := freshAtoms_nodup b ρs.length
+  have hzlen : t.length = ρs.length := by rw [ht, freshAtoms, List.length_map,
+    List.length_range]
+  have hps : (t.zip ρs).map Prod.fst = t := List.map_fst_zip (Nat.le_of_eq hzlen)
+  have hpairFst : ∀ p ∈ t.zip ρs, ∀ q ∈ t.zip ρs, p.1 = q.1 → p = q :=
+    fun p hp q hq heq => pair_eq_of_fst_eq_zip t ρs hnodupt p q hp hq heq
+  have hpairSnd : ∀ p ∈ t.zip ρs, ∀ q ∈ t.zip ρs, p.2 = q.2 → p = q :=
+    fun p hp q hq heq => pair_eq_of_snd_eq_zip t ρs hnodupρs p q hp hq heq
+  -- freshness
+  have hnotS : ∀ s ∈ t, s ∉ S := by
+    intro s hs hS
+    have h1 := le_of_mem_freshAtoms hs
+    have h2 : s ≤ (S ∪ (A.support ∪ X.support)).sup id :=
+      Finset.le_sup (f := id) (Finset.mem_union_left (A.support ∪ X.support) hS)
+    exact Nat.lt_irrefl s (h2.trans_lt (hb.trans_le h1))
+  have hfreshAX : ∀ s ∈ t, s ∉ A.support ∪ X.support := by
+    intro s hs hmem
+    have h1 := le_of_mem_freshAtoms hs
+    rcases Finset.mem_union.mp hmem with hmem' | hmem'
+    · have h2 : s ≤ (S ∪ (A.support ∪ X.support)).sup id :=
+        Finset.le_sup (f := id)
+          (Finset.mem_union_right S (Finset.mem_union_left X.support hmem'))
+      exact Nat.lt_irrefl s (h2.trans_lt (hb.trans_le h1))
+    · have h2 : s ≤ (S ∪ (A.support ∪ X.support)).sup id :=
+        Finset.le_sup (f := id)
+          (Finset.mem_union_right S (Finset.mem_union_right A.support hmem'))
+      exact Nat.lt_irrefl s (h2.trans_lt (hb.trans_le h1))
+  have hpsnd : (t.zip ρs).map Prod.snd = ρs :=
+    List.map_snd_zip (Nat.le_of_eq hzlen.symm)
+  -- the main reduction
+  have hmain := lemma6_canonical lp hsA hsX (t.zip ρs)
+    (fun w => by rw [hpsnd]; exact hcover w) hpairSnd hpairFst
+    (by rw [hps]; exact hnodupt)
+    (fun s hs => hfreshAX s (hps ▸ hs))
+    (fun s hs => hnotS s (hps ▸ hs))
+  -- convert the canonical query to the take-form
+  have htake : ((t.zip ρs).filter (fun p => A.eval (fillTrue S p.2) = true)).map
+      Prod.fst = t.take ρAs.length := by
+    have hz := filter_zip_take (fun w => A.eval (fillTrue S w)) t ρAs ρNs
+      (hzlen.trans (by rw [hρs, List.length_append]))
+      (fun x hx => (Finset.mem_filter.mp (Finset.mem_toList.mp hx)).2)
+      (fun x hx => (Finset.mem_filter.mp (Finset.mem_toList.mp hx)).2)
+    have hfil2 : (t.zip ρs).filter (fun p => A.eval (fillTrue S p.2) = true) =
+        (t.zip (ρAs ++ ρNs)).filter (fun p => A.eval (fillTrue S p.2)) := by
+      rw [hρs]
+      apply List.filter_congr
+      intro p _
+      simp
+    rw [hfil2]
+    exact hz
+  -- assemble
+  rw [hmain, htake, hps, ht, hρs, hlenρs, hlenρAs]
+
+/-- **Van Horn's Corollary 8, syntactic form**: if `(A, X)` and `(B, Y)` have
+the same numbers of favorable and total cases (over a common finite support),
+then `(A | X) = (B | Y)`.  This is the bridge: with the semantic layer, it
+says a `LogicalPlausibility`'s value depends only on the model counts. -/
+theorem value_eq_of_counts_eq
+    (S : Finset Atom) (A X B Y : Formula Atom)
+    (hsA : A.support ⊆ S) (hsX : X.support ⊆ S)
+    (hsB : B.support ⊆ S) (hsY : Y.support ⊆ S)
+    (hm : (modelsOn S (A.and X)).card = (modelsOn S (B.and Y)).card)
+    (hn : (modelsOn S X).card = (modelsOn S Y).card) :
+    lp.value A X = lp.value B Y := by
+  have hsub1 : S ∪ (A.support ∪ X.support) ⊆
+      S ∪ ((A.support ∪ X.support) ∪ (B.support ∪ Y.support)) := by
+    intro x hx
+    rcases Finset.mem_union.mp hx with h | h
+    · exact Finset.mem_union.mpr (Or.inl h)
+    · exact Finset.mem_union.mpr (Or.inr (Finset.mem_union.mpr (Or.inl h)))
+  have hsub2 : S ∪ (B.support ∪ Y.support) ⊆
+      S ∪ ((A.support ∪ X.support) ∪ (B.support ∪ Y.support)) := by
+    intro x hx
+    rcases Finset.mem_union.mp hx with h | h
+    · exact Finset.mem_union.mpr (Or.inl h)
+    · exact Finset.mem_union.mpr (Or.inr (Finset.mem_union.mpr (Or.inr h)))
+  set b := (S ∪ ((A.support ∪ X.support) ∪ (B.support ∪ Y.support))).sup id + 1 with hbdef
+  have hsup : (S ∪ ((A.support ∪ X.support) ∪ (B.support ∪ Y.support))).sup id < b :=
+    Nat.lt_succ_self _
+  have h1 := lemma6_counts lp hsA hsX b
+    (lt_of_le_of_lt (Finset.sup_mono (f := id) hsub1) hsup)
+  have h2 := lemma6_counts lp hsB hsY b
+    (lt_of_le_of_lt (Finset.sup_mono (f := id) hsub2) hsup)
+  rw [h1, h2, hm, hn]
+
+end Counts
+
 end Plausibility

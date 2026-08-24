@@ -2,14 +2,14 @@
 
 **Project**: `plausibility` — Lean 4 (v4.33.1) + Mathlib (pinned v4.33.1)
 **Paper**: Kevin S. Van Horn, *From propositional logic to plausible reasoning: A uniqueness theorem*, IJAR 88 (2017) 309–332
-**Status**: semantic theorem fully machine-verified; syntactic bridge infrastructure in place; one major derivation remaining
+**Status**: semantic theorem AND the syntactic Lemma-6 bridge (R1+R2 -> count dependence) fully machine-verified; remaining: R3/R4 transfer to the semantic axioms
 **Verification**: `lake build` green · `#print axioms` on every theorem -> `[propext, Classical.choice, Quot.sound]` only · zero `sorry`/`admit` (grep + no `sorryAx` in axiom audit)
 
 ---
 
 ## 1. Executive summary
 
-The paper's core argument — *plausibility values are forced to be rational probabilities* — is now fully machine-checked at the **semantic (finite-world) layer**, together with the probability laws (Corollary 15), a consistency witness (Theorem 16), a counterexample showing R4 is not derivable from the rest, and a nonuniform-probability example. What remains is the **syntactic bridge**: deriving the semantic change-of-variables axiom from the paper's raw propositional Requirements R1+R2 (Lemma 6's fresh-symbol machinery). All infrastructure that derivation needs — formula lifting, fresh-symbol definitions with their model-count bijection, vocabulary splitting, and the diagram formula isolating a single truth assignment — is proved and waiting in `Plausibility/VanHorn/`.
+The paper's core argument — *plausibility values are forced to be rational probabilities* — is machine-checked at the **semantic (finite-world) layer**, together with the probability laws (Corollary 15), a consistency witness (Theorem 16), a counterexample showing R4 is not derivable from the rest, a nonuniform-probability example — **and the syntactic bridge**: Van Horn's Lemma 6 is now fully proved from the raw Requirements R1+R2 (`Plausibility/VanHorn/Reduction.lean`), yielding `value_eq_of_counts_eq`: equal model counts give equal plausibilities. What remains of the full propositional bridge is the R3/R4 transfer (scale invariance and strict monotonicity at the formula level).
 
 The one-sentence content of the verified theorem:
 
@@ -46,6 +46,13 @@ The one-sentence content of the verified theorem:
 | R4 necessity counterexample | `threeSystem` with `equiv_invariance`, `irrelevant_product`, **`not_strictMono`** | `VanHorn/Counterexamples.lean` |
 | Nonuniform example | `biased_coin_heads : countSystem.score (8-of-10 event) = 4/5` | `VanHorn/Counterexamples.lean` |
 | Syntax + models + sanity | `Formula`, `models`, `logicalProbability` + 4 exhaustive checks | `PropLogic/` |
+| Syntactic Requirements over `Atom := ℕ` | `LogicalPlausibility` (eval-based `Eqv`/`EqvAt`/`Entails`/`Sat`, support-fresh R2/R3) | `VanHorn/Requirements.lean` |
+| Iterated R2 (add/remove lists of definitions) | `r2_many`, `r2_many_zip` | `VanHorn/Reduction.lean` |
+| Step 2: query becomes favorable-symbol disjunction | `step2_eqvAt` | `VanHorn/Reduction.lean` |
+| Step 3: premise becomes exactly-one | `eval_sBlock_eq`, `step3_premise_eqv` | `VanHorn/Reduction.lean` |
+| **Lemma 6** (four-step reduction) | `lemma6_canonical` | `VanHorn/Reduction.lean` |
+| **Corollary 8 (syntactic)** | `lemma6_counts`, `value_eq_of_counts_eq` | `VanHorn/Reduction.lean` |
+| Canonic formula machinery + modelsOn | `bigOr`/`exactlyOne`/`allNeg`, `modelsOn`, `card_modelsOn_subset` | `VanHorn/Canonic.lean` |
 
 ## 3. Architecture
 
@@ -136,6 +143,9 @@ Axiom audit (all results currently): `#print axioms <name>` -> `[propext, Classi
 
 ## 9. Inventory at a glance
 
-- 11 Lean files, ~1,400 lines of proof source.
-- 30+ named theorems/defs across semantic and syntactic layers; every one axiom-clean.
-- Two commits: `d5a783f` (semantic layer), `90e73ff` (bridge infrastructure + laws + counterexamples).
+- 12 Lean files, ~2,300 lines of proof source.
+- 45+ named theorems/defs across semantic and syntactic layers; every one axiom-clean
+  (`propext`, `Classical.choice`, `Quot.sound` only; zero `sorry`).
+- Commits: `d5a783f` (semantic layer), `90e73ff` (bridge infrastructure + laws +
+  counterexamples), `2fb2af4` (Lemma 6 core), final commit (counts corollary +
+  reports).
