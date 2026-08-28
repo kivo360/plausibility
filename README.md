@@ -160,6 +160,12 @@ Plausibility/VanHorn/Counterexamples.lean -- R4 counterexample, biased coin
 Plausibility/VanHorn/Bridge.lean         -- R3/R4 transfer, toSystem, calibration
 ```
 
+## Reading guide for Mathlib newcomers
+
+See `READING.md`: where things like `Finset.univ.filter` actually live, the
+idiom cheat-sheet (`↥S`, `.attach`, `Fintype.card`, `omega`, `#print axioms`…),
+and a dependency-ordered reading path through the files.
+
 ## Plain-English version
 
 See `ELI5.md` for the no-background-needed explanation: what the theorem says,
