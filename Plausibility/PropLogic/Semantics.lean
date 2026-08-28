@@ -17,8 +17,17 @@ namespace Plausibility
 
 variable {α : Type*}
 
-/-- The set of truth assignments `v : α → Bool` satisfying `φ`.  The predicate
-`φ.eval v = true` is decidable (equality on `Bool`), so this is computable. -/
+/-- The set of truth assignments `v : α → Bool` satisfying `φ` — the finite
+model set `M(φ)` of the paper.
+
+New to Mathlib?  Read the body as set-builder notation over a finite universe:
+`Finset.univ` is *every* valuation (the type `α → Bool` is itself finite, i.e.
+the full truth table), and `.filter (fun v => φ.eval v = true)` keeps exactly
+the satisfying ones — `{v | φ.eval v = true}`.  These are two independent
+definitions (`Mathlib/Data/Fintype/Defs.lean` and
+`Mathlib/Data/Finset/Filter.lean`), composed by dot notation.  See
+`READING.md` in the repo root.  The predicate is decidable (equality on
+`Bool`), so this is computable. -/
 def models [Fintype α] [DecidableEq α] (φ : Formula α) : Finset (α → Bool) :=
   Finset.univ.filter fun v => φ.eval v = true
 

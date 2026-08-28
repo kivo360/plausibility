@@ -3,6 +3,8 @@
 **Project**: `plausibility` — Lean 4 (v4.33.1) + Mathlib (pinned v4.33.1)
 **Paper**: Kevin S. Van Horn, *From propositional logic to plausible reasoning: A uniqueness theorem*, IJAR 88 (2017) 309–332
 **Status**: COMPLETE — semantic theorem, syntactic Lemma-6 bridge (R1+R2 -> count dependence), R3/R4 transfer (`toSystem`), and the final `vanHorn_calibration` theorem all machine-verified; zero `sorry`, axioms `[propext, Classical.choice, Quot.sound]` only
+**New to Lean/Mathlib?** Start with `READING.md` (where definitions live, the idiom cheat-sheet, reading order), then `ELI5.md` for the plain-English theorem statement.
+
 **Verification**: `lake build` green · `#print axioms` on every theorem -> `[propext, Classical.choice, Quot.sound]` only · zero `sorry`/`admit` (grep + no `sorryAx` in axiom audit)
 
 ---
